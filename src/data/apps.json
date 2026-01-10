@@ -1,0 +1,34 @@
+[
+  {
+    "id": "1",
+    "name": "Biblical Character Studies",
+    "url": "https://globalgospelchurch.org/character",
+    "description": "An application where you can select a character from the Bible, choose a study method and get a Study you can use and download.",
+    "icon": "📖",
+    "category": "Biblical"
+  },
+  {
+    "id": "2",
+    "name": "Plant Collection",
+    "url": "https://plants.idioma-ai.com",
+    "description": "An app that you can use to store plant information and pictures to document growth and progress.",
+    "icon": "🌱",
+    "category": "Horticulture"
+  },
+  {
+    "id": "3",
+    "name": "Language Learning Website",
+    "url": "https://idioma-ai.com",
+    "description": "A website to help you in your language learning journey.",
+    "icon": "🗣️",
+    "category": "Utilities"
+  },
+  {
+    "id": "4",
+    "name": "Church Website with Study Tools",
+    "url": "https://globalgospelchurch.org",
+    "description": "Global Gospel Church website with Bible Study tools.",
+    "icon": "⛪",
+    "category": "Biblical"
+  }
+]
