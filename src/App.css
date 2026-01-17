@@ -725,11 +725,8 @@ body {
 }
 
 .chat-message.assistant {
-  justify-content: flex-start;
-}
-
-.chat-message.assistant {
-  max-width: 100%;
+  display: block;
+  width: 100%;
 }
 
 .chat-message.user .message-content {

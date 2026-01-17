@@ -251,9 +251,9 @@ function ChatBot() {
     if (!input.trim() || isLoading || selectedProviders.length === 0) return
 
     const userMessage = { role: 'user', content: input.trim() }
-    const conversationHistory = [...messages.filter(m => m.role === 'user' || (m.role === 'assistant' && !m.responses)), userMessage]
 
-    setMessages(prev => [...prev, userMessage])
+    // Clear previous messages and only show current question
+    setMessages([userMessage])
     setInput('')
     setIsLoading(true)
 
@@ -262,7 +262,7 @@ function ChatBot() {
     await Promise.all(
       selectedProviders.map(async (provider) => {
         try {
-          const result = await callAI(provider, conversationHistory)
+          const result = await callAI(provider, [userMessage])
           responses[provider] = result
         } catch (error) {
           responses[provider] = `Error: ${error.message}`
@@ -276,7 +276,7 @@ function ChatBot() {
       providers: [...selectedProviders]
     }
 
-    setMessages(prev => [...prev, assistantMessage])
+    setMessages([userMessage, assistantMessage])
     setIsLoading(false)
   }
 
