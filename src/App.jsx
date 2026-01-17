@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import initialApps from './data/apps.json'
 import './App.css'
 
@@ -138,6 +138,8 @@ function App() {
             </table>
           )}
         </div>
+
+        <ChatBot />
       </main>
 
       {isFormOpen && (
@@ -165,6 +167,212 @@ function App() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// Supabase Edge Function URL
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+async function callAI(provider, messages) {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/chat`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+    },
+    body: JSON.stringify({ provider, messages })
+  })
+  const data = await response.json()
+  if (data.error) throw new Error(data.error)
+  return data.content
+}
+
+const AI_PROVIDERS = {
+  openai: {
+    name: 'ChatGPT',
+    model: 'GPT-4o',
+    icon: 'G',
+    color: '#10a37f',
+    description: 'OpenAI\'s GPT-4o. Great for general tasks, coding, and creative writing.'
+  },
+  claude: {
+    name: 'Claude',
+    model: 'Sonnet 4.5',
+    icon: 'C',
+    color: '#8b5cf6',
+    description: 'Anthropic\'s Claude. Excellent for analysis, long documents, and nuanced responses.'
+  },
+  grok: {
+    name: 'Grok',
+    model: '4',
+    icon: 'X',
+    color: '#000000',
+    description: 'xAI\'s Grok. Real-time information and witty, unfiltered responses.'
+  },
+  perplexity: {
+    name: 'Perplexity',
+    model: 'Sonar Pro',
+    icon: 'P',
+    color: '#20808d',
+    description: 'Perplexity AI. Best for research with cited sources and web search.'
+  }
+}
+
+
+function ChatBot() {
+  const [messages, setMessages] = useState([])
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [selectedProviders, setSelectedProviders] = useState(['openai'])
+  const messagesEndRef = useRef(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  const toggleProvider = (provider) => {
+    setSelectedProviders(prev => {
+      if (prev.includes(provider)) {
+        if (prev.length === 1) return prev // Keep at least one selected
+        return prev.filter(p => p !== provider)
+      }
+      return [...prev, provider]
+    })
+  }
+
+  const sendMessage = async (e) => {
+    e.preventDefault()
+    if (!input.trim() || isLoading || selectedProviders.length === 0) return
+
+    const userMessage = { role: 'user', content: input.trim() }
+    const conversationHistory = [...messages.filter(m => m.role === 'user' || (m.role === 'assistant' && !m.responses)), userMessage]
+
+    setMessages(prev => [...prev, userMessage])
+    setInput('')
+    setIsLoading(true)
+
+    const responses = {}
+
+    await Promise.all(
+      selectedProviders.map(async (provider) => {
+        try {
+          const result = await callAI(provider, conversationHistory)
+          responses[provider] = result
+        } catch (error) {
+          responses[provider] = `Error: ${error.message}`
+        }
+      })
+    )
+
+    const assistantMessage = {
+      role: 'assistant',
+      responses,
+      providers: [...selectedProviders]
+    }
+
+    setMessages(prev => [...prev, assistantMessage])
+    setIsLoading(false)
+  }
+
+  const selectedDescriptions = selectedProviders
+    .map(p => AI_PROVIDERS[p].description)
+    .join(' | ')
+
+  return (
+    <div className="chatbot-card">
+      <div className="chatbot-header">
+        <div className="chatbot-avatar">AI</div>
+        <div className="chatbot-title">
+          <h3>Multi-AI Assistant</h3>
+          <div className="provider-checkboxes">
+            {Object.entries(AI_PROVIDERS).map(([key, provider]) => (
+              <label key={key} className="provider-checkbox">
+                <input
+                  type="checkbox"
+                  checked={selectedProviders.includes(key)}
+                  onChange={() => toggleProvider(key)}
+                />
+                <span className="provider-label" style={{ '--provider-color': provider.color }}>
+                  {provider.name} ({provider.model})
+                </span>
+              </label>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="capabilities-bar">
+        {selectedDescriptions}
+      </div>
+
+      <div className="chatbot-messages">
+        {messages.length === 0 && (
+          <div className="chat-welcome">
+            Select one or more AI providers above and start chatting!
+          </div>
+        )}
+        {messages.map((msg, idx) => (
+          <div key={idx} className={`chat-message ${msg.role}`}>
+            {msg.role === 'user' ? (
+              <div className="message-content">{msg.content}</div>
+            ) : (
+              <>
+                <div className={`multi-response cols-${msg.providers?.length || 1}`}>
+                  {msg.providers?.map(provider => (
+                    <div key={provider} className="response-column" style={{ '--provider-color': AI_PROVIDERS[provider].color }}>
+                      <div className="response-header">
+                        <span className="response-icon">{AI_PROVIDERS[provider].icon}</span>
+                        <span className="response-name">{AI_PROVIDERS[provider].name} ({AI_PROVIDERS[provider].model})</span>
+                      </div>
+                      <div className="response-content">{msg.responses[provider]}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="response-divider"></div>
+              </>
+            )}
+          </div>
+        ))}
+        {isLoading && (
+          <div className="chat-message assistant">
+            <div className={`multi-response cols-${selectedProviders.length}`}>
+              {selectedProviders.map(provider => (
+                <div key={provider} className="response-column loading" style={{ '--provider-color': AI_PROVIDERS[provider].color }}>
+                  <div className="response-header">
+                    <span className="response-icon">{AI_PROVIDERS[provider].icon}</span>
+                    <span className="response-name">{AI_PROVIDERS[provider].name} ({AI_PROVIDERS[provider].model})</span>
+                  </div>
+                  <div className="response-content typing">
+                    <span></span><span></span><span></span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <form className="chatbot-input" onSubmit={sendMessage}>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Message..."
+          disabled={isLoading}
+        />
+        <button type="submit" disabled={isLoading || !input.trim() || selectedProviders.length === 0}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
+          </svg>
+        </button>
+      </form>
     </div>
   )
 }
